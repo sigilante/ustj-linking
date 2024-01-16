@@ -1,6 +1,6 @@
 # KnowhutImean?
 TARGET = mss
-BIBFILE = ernest
+BIBFILE = linking
 
 all: $(TARGET).pdf
 

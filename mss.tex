@@ -2,9 +2,9 @@
 
 \usepackage{ustj}
 
-\newcommand{\authorname}{Ernest P. Worrell}
-\newcommand{\authorpatp}{\patp{sampel-palnet}}
-\newcommand{\affiliation}{Kamp Kikakee}
+\newcommand{\authorname}{Ted Blackman \patp{rovnys-ricfer}; Philip C. Monk \patp{wicdev-wisryt}}
+\newcommand{\authorpatp}{}
+\newcommand{\affiliation}{Urbit Foundation; Tlon Corporation}
 
 %  Make first page footer:
 \fancypagestyle{firststyle}{%
@@ -15,17 +15,17 @@
               Manuscript submitted for review.\\
               % {\it Urbit Systems Technical Journal} I:1 (2024):  1–3. \\
               ~ \\
-              Address author correspondence to \authorpatp.
+              Address author correspondence to \patp{rovnys-ricfer}.
               }}
 }
 %  Arrange subsequent pages:
 \fancyhf{}
 \fancyhead[LE]{{\urbitfont Urbit Systems Technical Journal}}
-\fancyhead[RO]{Floating-Point Arithmetic on Deterministic Systems}
+\fancyhead[RO]{A Solution to Static vs. Dynamic Linking}
 \fancyfoot[LE,RO]{\thepage}
 
 %%MANUSCRIPT
-\title{Ernest Goes to Mars:  An Enquiry into the Foundations of Artificial Stupidity}
+\title{A Solution to Static vs. Dynamic Linking}
 \author{\authorname~\authorpatp \\ \affiliation}
 \date{}
 
@@ -35,7 +35,7 @@
 \thispagestyle{firststyle}
 
 \begin{abstract}
-In this groundbreaking paper, we embark on a cosmic journey with the renowned character Ernest P. Worrell as he ventures into the unexplored realm of Martian computing. Drawing inspiration from Ernest's comically ingenious encounters with everyday challenges, we investigate the foundations of what we term "Artificial Stupidity." As Ernest grapples with Martian technology, we delve into the intricacies of programming errors, algorithmic missteps, and the curious phenomena that arise when human-like intelligence meets extraterrestrial computing systems. Our analysis sheds light on the unexpected intersections between humor, artificial intelligence, and the cosmic absurdity of Martian software. Join us in this interplanetary exploration as we unravel the mysteries of Artificial Stupidity through the lens of Ernest's interstellar escapades.
+Computing systems that utilize library code must either link to a self-provided version (static linking) or a system-supplied version (dynamic linking).  This can lead to memory duplication or dependency hell.  The Urbit \texttt{++ford} build system elegantly solves for the linking problem by promoting structural sharing of objects (nouns) in memory and by utilizing a referentially transparent build cache.
 \end{abstract}
 
 % We will adjust page numbering in final editing.
@@ -46,71 +46,86 @@ In this groundbreaking paper, we embark on a cosmic journey with the renowned ch
 
 \section{Introduction}
 
-Introduce the scope of your article and investigation.
+A compiled computer program is conventionally built by parsing and compiling the source code into an object file and then linking that object file to library code, yielding an executable file.  That linking can be accomplished in two ways:  either directly including all of the library code in the program file, or supplying the library code in the operating system as a service.  Programmers have to balance flexibility, portability, and dependency management when deciding how to link a program, but both approaches can still lead to practical difficulties.
 
-\section{Background and Literature}
+\section{Static vs. Dynamic Linking}
 
-Exposite the relevant background and literature.
+“Static linking” includes all library code in the program executable file.  Static linking is the naïve way to combine source files into a program:  compound the files together into one object and then compile that into a program.  The semantics tend to be clean and simple, and many programs are linked this way.  Statically-linked programs can also run faster since they do not need to resolve library references during execution.
+
+The problem with static linking is that if the same library is used by more than one application, there is more than one copy of it in memory as a result.  This memory duplication can be demanding on RAM utilization and reduce cache locality, degrading overall system performance.
+
+Dynamic linking was invented to address this problem.  Instead of linking a library into a program at build time, one links it at runtime.  The OS keeps a single copy of the shared library in RAM that multiple programs can use.  This reduces memory usage and improves performance, but can lead to version mismatches and dependency issues.  \citeauthor{Locklin2022}~explains,
+
+\begin{quote}
+The shared object concept itself is a towering failure. This is little appreciated but undeniably true. The idea of the shared object is simple enough: if you have a computer running lots of code, some of the code used will be the same. Why not just load it to memory once and share that memory at runtime? … When people invented shared objects back in the 1960s, the computer was a giant, rare thing ministered to by a priesthood: there was no such thing as multiple versions of a shared object. You used what the mainframe vendor sold you.
+
+It’s now such an enormous problem there are multiple billion-dollar startups for technologies for dealing with this complexity by adding further complexity. Docker, Kubernetes, various Amazon atrocities for dealing with Docker and Kubernetes and their competitors, Flatpak, Conda, AppImages, MacPorts, \texttt{brew}, RPM, NixOS, \texttt{dpkg}/\texttt{apt}, VirtualBox, \texttt{pacman}, Yum, SnapCraft…. As the number of packages grows, this breaks down, and even the OS maintainers are giving up and turning to flatpak, AppImages and Snap files. 
+These are extremely complicated and incredibly wasteful \emph{(of memory)} ways of literally packaging up a bunch of needed shared libraries with your application and presenting it to you as a crappy simulacrum of a statically compiled binary.  \citep{Locklin2022}
+\end{quote}
+
+\noindent
+\citeauthor{Locklin2022}'s picturesque exposition highlights the “dependency hell” or “DLL hell” that mires modern software development.  (Cf. \citet{Grimes2003}.)  From Urbit's perspective as a solid-state computer, another problem with dynamic linking is that it is not deterministic.  Dynamic linking was something of a pact with the devil, permitting efficient memory usage at the price of legibility.
+
+Programmers have to balance flexibility, portability, and dependency management when deciding how to link a program.
+
+
+\section{Building Code Deterministically}
+
+Nix
+
+In Urbit, compilation means converting Hoon source code (as text) into Nock code (as a binary tree).  This process is handled by \texttt{++rash}, mint:ut
+
+Linking, in the Urbit sense, derives from supplying nouns to nouns at compile time.\footnote{This is perhaps the biggest distinction from the conventional scenario for linking, which would refer to RAM words.  \emph{Ceteris paribus}, this article's discussion can inform the traditional dialogue.}  In the Urbit build arm \texttt{++ford}, a pair of builds becomes the build of a pair.  The subject (environment) used to build a file is the tuple \texttt{\string[import\_n … import\_2 import\_1 stdlib\string]}.  Since Hoon symbol lookup is left-to-right, this nests scopes seamlessly and predictably.  The linking technique is essentially trivial.
+
+Ford compiles a Hoon source file into a data structure called a “vase”, a pair \texttt{\string[type noun\string]} where \texttt{noun} is a member of the set of nouns described by \texttt{type}.  Linking is thence just calling the \texttt{++slop} funciton, a one-liner from a pair of vases to a vase of the pair.
+
+For example, the (trivial) Hoon source file with text \texttt{'3'} compiles to the vase \texttt{\string[\string[\%atom \%ud \textasciitilde\string] 3\string]}.  \texttt{3} is the value.  Its type is an atom (number), tagged as an unsigned decimal (\texttt{\%ud}) for printing.
+
+As another example, the Hoon source file with text \texttt{'[3 0x4]'} compiles to \texttt{\string[\string[\%cell \string[\%atom \%ud \textasciitilde\string] \string[\%atom \%ux \textasciitilde\string]\string] \string[3 0x4\string]\string]}.  It's a vase of a \texttt{\%cell} (pair) of unsigned decimal number (\texttt{\%ud}) and unsigned hexadecimal number (\texttt{\%ux}).  If \texttt{/foo/hoon} is \texttt{'3'}, \texttt{/bar/hoon} is \texttt{'0x4'}, then importing both of those files changes the build subject to (a vase of) \texttt{\string[foo=3 bar=0x4 <stdlib>\string]}.
+
+This is a form of static linking.  The linking is performed at build time, not at runtime, and the resulting program contains its imports.  “Relocation pointers” in C correspond to adjusting tree slots in Hoon, which the Hoon compiler does for the developer.  Because Urbit uses static linking, it long had the same problem static linking has always had:  memory duplication.  If two different apps imported the same library, that library would be built twice and two copies of it would exist in memory.
+
+In Urbit, everything is a “noun” (a binary tree with arbitrarily-sized integers at leaves).  If you “copy” a noun \texttt{foo}, like \texttt{\string[foo foo\string]}, the runtime just copies a pointer to it.  They are immutable, so everything shares structure.  Nouns are “persistent” data structures, like Clojure's collections.  If one copies a library, the copy is merely a pointer to the library—the library is a \emph{noun}.  If an imported library can be looked up from a build cache, the builder can copy it into a new app's build subject without duplicating it in memory.  
+
+But how does one know whether the cached library is valid?  To achieve global (cross-application) deduplication, one needs a referentially transparent build cache, i.e. a build factored as a full description of an input to the build system.  Since the build system is deterministic, if one sees the same input, one knows that i will produce the same output.
+
+With one referentially transparent cache for all builds in the whole system, no invalidation is necessary.  Cache eviction can take place efficiently due to reference counting, since which revisions of which apps refer to which builds is known.
+
+As of \#5745 \citep{Monk2022}, Urbit supplies such a referentially transparent build cache.  What this means in practice is that Urbit can have the memory deduplication benefits of dynamic linking while still using static linking.  Since every filesystem snapshot lives at a unique, immutable, authenticated path within Urbit's scry namespace, reproducible builds are possible on every node, a crucial feature for software supply chain security and reliable app distribution.
+
+\section{The Modern \texttt{++ford} Build Cache}
+
+The former Ford cache was per-desk,\footnote{Clay desks in Urbit are like Git branches, describing particular filesystem continuities.} keyed on the name of the build (e.g. a file at a certain path).  It was impossible to share such a cache between desks because the name may refer to different things on different desks or at different revisions.
+
+Since the caches weren't shared, they commonly held exactly the same data but generated independently.  For instance, the same library used on different desks would be built repeatedly and the memory was not shared unless the user manually ran the \texttt{|meld} command to manually deduplicate nouns.  For users with many apps installed, this added significant memory pressure.
+
+A new cache was designed which is keyed on the name of the build plus its dependencies. This is all the input to a build except the standard library.  Thus when one matches a key it does not matter which desk the value was on; the cache can be shared across all desks.  When the standard library changes, all caches are cleared automatically.
+
+Reclaiming space from this cache becomes important.  Since this is a “true” cache, it's never incorrect to keep data in it.  One could adopt a heuristic such as to clear hourly or so you could use a heuristic such as "clear the whole thing every hour" or a least-recently-used (LRU) policy.  However, \texttt{++ford} has a long history of trying to use such heuristics and still using exorbitant amounts of memory.  The primary innovation of the former \texttt{++ford} cache was that its size is deterministic, and it stored no builds unless they could be generated from the head of its desk (\texttt{\%home} then \texttt{\%base}).
+
+These properties are extended to the global cache by counting references and maintaining a per-desk set of references to builds which are still relevant to the head of that desk.  On every commit, the per-desk set of references is inspected to determine which have been invalidated.  Invalidated references are freed in the usual manner—their refcount is decremented, and if it's now zero, then it is deleted from the cache and all of its immediate dependencies are freed.
+
+An alternative would be to garbage collect, which could be done on every commit to maintain determinism.  However, this scales with the size of the cache (thus, with the number of desks installed), whereas refcounting scales only with the desk in question.  Additionally, the cache is acyclic, and no manual refcounting is required—there is precisely one place where references are gained and one where references are lost.
+
+As a result, the current cache has a “least upper bound” property:  first, it minimizes the number of rebuilds required; given that, it minimizes the amount of memory required.  In other words, cache entries are thrown away only when they become irrelevant.  An alternate approach would be a “greatest lower bound”—throw away any cache entries that the system is not certain to need.  This uses a bit less memory but results in more rebuilds.  (It is also a little more complex to implement, since it requires clients to “register” the builds they want to keep warm in the cache, even if those builds didn't become invalid.)
+
+Generating a cache key for this cache can be slow—hundreds of milliseconds is not uncommon, and it scales with the number of transitive dependencies.  To mitigate this, a per-desk cache is included isomorphic to the former cache system.  This has sub-millisecond lookup speed, and remains well-understood.
+
+The current procedure to perform a build is thus:
 
 \begin{enumerate}
-  \item  Prefer to \texttt{enumerate}.
-  \item  It is easier to refer to than \texttt{itemize}.
+  \item  Check if the build is in the per-desk cache; if so, return it
+generate its dependencies.
+  \item  Check if the build, with these dependencies, is in the global cache; if so, return it.
+  \item  Else, build it.
 \end{enumerate}
-
 \noindent
-Mark \texttt{\textbackslash noindent} in paragraphs that continue the thought of an \texttt{\textbackslash enumerate} block.
-
-\section{Urbit's Implementation}
-
-Oftentimes you will then turn to exploring how Urbit or closely related systems like Nockchain have approached or considered a problem.
-
-\lstset{language=C}
-\begin{lstlisting}
-#include <stdio.h>
-
-double compute(float a, float b) {
-    return a * a + b * b;
-}
-
-int main() {
-    float x = 2.5;
-    float y = 3.7;
-
-    double result = compute(x, y);
-
-    printf("Result: %lf\n", result);
-
-    return 0;
-}
-\end{lstlisting}
-
-\noindent
-That code snippet was part of the text, and not a standalone entity to which we make separate repeated reference.
-
-\begin{figure}
-  \begin{lstlisting}[language=Python, caption={Example Python Code}, label={lst:example}]
-  def hello_world():
-      print("Hello, world!")
-  \end{lstlisting}
-\end{figure}
-
-Refer to the code listing: Listing~\ref{lst:example}.  (Note that we don't suppress indentation since it's a float.)
-
-
-\section{A Wild Ernest Appears}
-
-You can have as many sections as make sense.  Only sections and subsections appear in the table of contents.
+In each case, the new build is added to either cache if it was not already prsent; and if it was not in the per-desk set of references, it is added there as well.
 
 \section{Conclusion}
 
-To summarize, why did you write it?  Why do we care?  What impact should it have on Urbit development?
-
-Your bibliography is a separate BibTeX file.  We use the \texttt{plainnat} bibliography style.  You can use \texttt{natbib} citation commands like \texttt{\textbackslash citep\{wikipedia\}} for parenthesized references.  Use \texttt{\textbackslash citet\{wikipedia\}} for inline references.  You can also use \texttt{\textbackslash citeauthor\{wikipedia\}} for the principal author's name.
-
-``You can use traditional TeX---or LaTeX---representations'' \citep{Varney1987}.
-
-“Or you can use fancy quotes—and symbols.”
+Developers have long sought to balance the flexibility and portability of static linking with the better system demands of dynamic linking.  Despite care, the balancing act has led from well-managed mainframe code into the current linker spaghetti situation.  Urbit's \texttt{++ford} build system elegantly solves for the linking problem by promoting structural sharing of objects (nouns) in memory and by utilizing a referentially transparent build cache across desks.  This balances efficiency in code compilation and building with the reliability of solid-state computing.
 
 \bibliographystyle{plainnat}
-\bibliography{ernest}
+\bibliography{linking}
 \end{document}
