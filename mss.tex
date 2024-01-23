@@ -35,7 +35,7 @@
 \thispagestyle{firststyle}
 
 \begin{abstract}
-Computing systems that utilize library code must either link to a self-provided version (static linking) or a system-supplied version (dynamic linking).  This can lead to memory duplication or dependency hell.  The Urbit \texttt{++ford} build system elegantly solves for the linking problem by promoting structural sharing of objects (nouns) in memory and by utilizing a referentially transparent build cache.
+Computing systems that utilize library code must either link to a self-provided version (static linking) or a system-supplied version (dynamic linking).  This can lead to memory duplication or dependency hell.  The Urbit \lstinline[style=inlinecode]{++ford} build system elegantly solves for the linking problem by promoting structural sharing of objects (nouns) in memory and by utilizing a referentially transparent build cache.
 \end{abstract}
 
 % We will adjust page numbering in final editing.
@@ -71,21 +71,21 @@ Programmers have to balance flexibility, portability, and dependency management 
 
 \section{Building Code Deterministically}
 
-Nix
+Determinism has long been a desired characteristic of any given build system.  The source code should be a function of build environment and build instructions in a straightforward way.  Even accessing the linked libraries in a different order can alter the resulting binary, however, meaning that true reproducibility is elusive.  Declarative package managers like Nix \citep{Nix}~and Guix \citep{Guix}~use a functional package management approach to achieve reproducibility, marking packages using cryptographic hashes to track dependencies uniquely and repeatably.
 
-In Urbit, compilation means converting Hoon source code (as text) into Nock code (as a binary tree).  This process is handled by \texttt{++rash}, mint:ut
+In Urbit, compilation means converting Hoon source code (as text) into Nock code (as a binary tree).  This process is handled by \lstinline[style=inlinecode]{++rash}, \lstinline[style=inlinecode]{++mint:ut}, and other components of the Urbit build system.
 
-Linking, in the Urbit sense, derives from supplying nouns to nouns at compile time.\footnote{This is perhaps the biggest distinction from the conventional scenario for linking, which would refer to RAM words.  \emph{Ceteris paribus}, this article's discussion can inform the traditional dialogue.}  In the Urbit build arm \texttt{++ford}, a pair of builds becomes the build of a pair.  The subject (environment) used to build a file is the tuple \texttt{\string[import\_n … import\_2 import\_1 stdlib\string]}.  Since Hoon symbol lookup is left-to-right, this nests scopes seamlessly and predictably.  The linking technique is essentially trivial.
+Linking, in the Urbit sense, derives from supplying nouns to nouns at compile time.\footnote{This is perhaps the biggest distinction from the conventional scenario for linking, which refers to RAM words.  \emph{Ceteris paribus}, this article's discussion can inform the traditional dialogue.}  In the Urbit build arm \lstinline[style=inlinecode]{++ford}, a pair of builds becomes the build of a pair.  The subject (environment) used to build a file is the tuple \lstinline[style=inlinecode]{[import_n … import_2 import_1 stdlib]}.  Since Hoon symbol lookup is left-to-right, this nests scopes seamlessly and predictably.  The linking technique is essentially trivial.
 
-Ford compiles a Hoon source file into a data structure called a “vase”, a pair \texttt{\string[type noun\string]} where \texttt{noun} is a member of the set of nouns described by \texttt{type}.  Linking is thence just calling the \texttt{++slop} funciton, a one-liner from a pair of vases to a vase of the pair.
+Ford compiles a Hoon source file into a data structure called a “vase”, a pair \lstinline[style=inlinecode]{[type noun]} where \lstinline[style=inlinecode]{noun} is a member of the set of nouns described by \lstinline[style=inlinecode]{type}.  Linking is thence just calling the \lstinline[style=inlinecode]{++slop} funciton, a one-liner from a pair of vases to a vase of the pair.
 
-For example, the (trivial) Hoon source file with text \texttt{'3'} compiles to the vase \texttt{\string[\string[\%atom \%ud \textasciitilde\string] 3\string]}.  \texttt{3} is the value.  Its type is an atom (number), tagged as an unsigned decimal (\texttt{\%ud}) for printing.
+For example, the (trivial) Hoon source file with text \lstinline[style=inlinecode]{'3'} compiles to the vase \lstinline[style=inlinecode]{[[%atom %ud ~] 3]}.  \lstinline[style=inlinecode]{3} is the value.  Its type is an atom (number), tagged as an unsigned decimal (\lstinline[style=inlinecode]{%ud}) for printing.
 
-As another example, the Hoon source file with text \texttt{'[3 0x4]'} compiles to \texttt{\string[\string[\%cell \string[\%atom \%ud \textasciitilde\string] \string[\%atom \%ux \textasciitilde\string]\string] \string[3 0x4\string]\string]}.  It's a vase of a \texttt{\%cell} (pair) of unsigned decimal number (\texttt{\%ud}) and unsigned hexadecimal number (\texttt{\%ux}).  If \texttt{/foo/hoon} is \texttt{'3'}, \texttt{/bar/hoon} is \texttt{'0x4'}, then importing both of those files changes the build subject to (a vase of) \texttt{\string[foo=3 bar=0x4 <stdlib>\string]}.
+As another example, the Hoon source file with text \lstinline[style=inlinecode]{'[3 0x4]'} compiles to \lstinline[style=inlinecode]{[[%cell [%atom %ud ~] [%atom %ux ~]] [3 0x4]]}.  It's a vase of a \lstinline[style=inlinecode]{%cell} (pair) of unsigned decimal number (\lstinline[style=inlinecode]{%ud}) and unsigned hexadecimal number (\lstinline[style=inlinecode]{%ux}).  If \lstinline[style=inlinecode]{/foo/hoon} is \lstinline[style=inlinecode]{'3'}, \lstinline[style=inlinecode]{/bar/hoon} is \lstinline[style=inlinecode]{'0x4'}, then importing both of those files changes the build subject to (a vase of) \lstinline[style=inlinecode]{[foo=3 bar=0x4 <stdlib>]}.
 
 This is a form of static linking.  The linking is performed at build time, not at runtime, and the resulting program contains its imports.  “Relocation pointers” in C correspond to adjusting tree slots in Hoon, which the Hoon compiler does for the developer.  Because Urbit uses static linking, it long had the same problem static linking has always had:  memory duplication.  If two different apps imported the same library, that library would be built twice and two copies of it would exist in memory.
 
-In Urbit, everything is a “noun” (a binary tree with arbitrarily-sized integers at leaves).  If you “copy” a noun \texttt{foo}, like \texttt{\string[foo foo\string]}, the runtime just copies a pointer to it.  They are immutable, so everything shares structure.  Nouns are “persistent” data structures, like Clojure's collections.  If one copies a library, the copy is merely a pointer to the library—the library is a \emph{noun}.  If an imported library can be looked up from a build cache, the builder can copy it into a new app's build subject without duplicating it in memory.  
+In Urbit, everything is a “noun” (a binary tree with arbitrarily-sized integers at leaves).  If you “copy” a noun \lstinline[style=inlinecode]{foo}, like \lstinline[style=inlinecode]{[foo foo]}, the runtime just copies a pointer to it.  They are immutable, so everything shares structure.  Nouns are “persistent” data structures, like Clojure's collections.  If one copies a library, the copy is merely a pointer to the library—the library is a \emph{noun}.  If an imported library can be looked up from a build cache, the builder can copy it into a new app's build subject without duplicating it in memory.  
 
 But how does one know whether the cached library is valid?  To achieve global (cross-application) deduplication, one needs a referentially transparent build cache, i.e. a build factored as a full description of an input to the build system.  Since the build system is deterministic, if one sees the same input, one knows that i will produce the same output.
 
@@ -93,15 +93,15 @@ With one referentially transparent cache for all builds in the whole system, no 
 
 As of \#5745 \citep{Monk2022}, Urbit supplies such a referentially transparent build cache.  What this means in practice is that Urbit can have the memory deduplication benefits of dynamic linking while still using static linking.  Since every filesystem snapshot lives at a unique, immutable, authenticated path within Urbit's scry namespace, reproducible builds are possible on every node, a crucial feature for software supply chain security and reliable app distribution.
 
-\section{The Modern \texttt{++ford} Build Cache}
+\section{The Modern \lstinline[style=inlinecode]{++ford} Build Cache}
 
 The former Ford cache was per-desk,\footnote{Clay desks in Urbit are like Git branches, describing particular filesystem continuities.} keyed on the name of the build (e.g. a file at a certain path).  It was impossible to share such a cache between desks because the name may refer to different things on different desks or at different revisions.
 
-Since the caches weren't shared, they commonly held exactly the same data but generated independently.  For instance, the same library used on different desks would be built repeatedly and the memory was not shared unless the user manually ran the \texttt{|meld} command to manually deduplicate nouns.  For users with many apps installed, this added significant memory pressure.
+Since the caches weren't shared, they commonly held exactly the same data but generated independently.  For instance, the same library used on different desks would be built repeatedly and the memory was not shared unless the user manually ran the \lstinline[style=inlinecode]{|meld} command to manually deduplicate nouns.  For users with many apps installed, this added significant memory pressure.
 
 A new cache was designed which is keyed on the name of the build plus its dependencies. This is all the input to a build except the standard library.  Thus when one matches a key it does not matter which desk the value was on; the cache can be shared across all desks.  When the standard library changes, all caches are cleared automatically.
 
-Reclaiming space from this cache becomes important.  Since this is a “true” cache, it's never incorrect to keep data in it.  One could adopt a heuristic such as to clear hourly or so you could use a heuristic such as "clear the whole thing every hour" or a least-recently-used (LRU) policy.  However, \texttt{++ford} has a long history of trying to use such heuristics and still using exorbitant amounts of memory.  The primary innovation of the former \texttt{++ford} cache was that its size is deterministic, and it stored no builds unless they could be generated from the head of its desk (\texttt{\%home} then \texttt{\%base}).
+Reclaiming space from this cache becomes important.  Since this is a “true” cache, it's never incorrect to keep data in it.  One could adopt a heuristic such as to clear hourly or so you could use a heuristic such as "clear the whole thing every hour" or a least-recently-used (LRU) policy.  However, \lstinline[style=inlinecode]{++ford} has a long history of trying to use such heuristics and still using exorbitant amounts of memory.  The primary innovation of the former \lstinline[style=inlinecode]{++ford} cache was that its size is deterministic, and it stored no builds unless they could be generated from the head of its desk (\lstinline[style=inlinecode]{%home} then \lstinline[style=inlinecode]{%base}).
 
 These properties are extended to the global cache by counting references and maintaining a per-desk set of references to builds which are still relevant to the head of that desk.  On every commit, the per-desk set of references is inspected to determine which have been invalidated.  Invalidated references are freed in the usual manner—their refcount is decremented, and if it's now zero, then it is deleted from the cache and all of its immediate dependencies are freed.
 
@@ -120,11 +120,11 @@ generate its dependencies.
   \item  Else, build it.
 \end{enumerate}
 \noindent
-In each case, the new build is added to either cache if it was not already prsent; and if it was not in the per-desk set of references, it is added there as well.
+In each case, the new build is added to either cache if it was not already present; and if it was not in the per-desk set of references, it is added there as well.
 
 \section{Conclusion}
 
-Developers have long sought to balance the flexibility and portability of static linking with the better system demands of dynamic linking.  Despite care, the balancing act has led from well-managed mainframe code into the current linker spaghetti situation.  Urbit's \texttt{++ford} build system elegantly solves for the linking problem by promoting structural sharing of objects (nouns) in memory and by utilizing a referentially transparent build cache across desks.  This balances efficiency in code compilation and building with the reliability of solid-state computing.
+Developers have long sought to balance the flexibility and portability of static linking with the better system demands of dynamic linking.  Despite care, the balancing act has led from well-managed mainframe code into the current linker spaghetti situation.  Urbit's \lstinline[style=inlinecode]{++ford} build system elegantly solves for the linking problem by promoting structural sharing of objects (nouns) in memory and by utilizing a referentially transparent build cache across desks.  This balances efficiency in code compilation and building with the reliability of solid-state computing.
 
 \bibliographystyle{plainnat}
 \bibliography{linking}
