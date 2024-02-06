@@ -1,12 +1,12 @@
 # KnowhutImean?
 TARGET = mss
-BIBFILE = linking
+BIBFILE = mss
 
 all: $(TARGET).pdf
 
 $(TARGET).pdf: $(TARGET).tex $(BIBFILE).bib
 	xelatex -interaction=nonstopmode $(TARGET)
-	bibtex $(TARGET)
+	biber $(TARGET)
 	xelatex -interaction=nonstopmode $(TARGET)
 	xelatex -interaction=nonstopmode $(TARGET)
 

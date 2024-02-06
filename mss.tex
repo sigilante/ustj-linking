@@ -2,9 +2,11 @@
 
 \usepackage{ustj}
 
-\newcommand{\authorname}{Ted Blackman \patp{rovnys-ricfer}; Philip C. Monk \patp{wicdev-wisryt}}
+\addbibresource{mss.bib}
+
+\newcommand{\authorname}{Ted Blackman \patp{rovnys-ricfer} \\ Philip C. Monk \patp{wicdev-wisryt}}
 \newcommand{\authorpatp}{}
-\newcommand{\affiliation}{Urbit Foundation; Tlon Corporation}
+\newcommand{\affiliation}{Urbit Foundation \\ Tlon Corporation}
 
 %  Make first page footer:
 \fancypagestyle{firststyle}{%
@@ -126,6 +128,5 @@ In each case, the new build is added to either cache if it was not already prese
 
 Developers have long sought to balance the flexibility and portability of static linking with the better system demands of dynamic linking.  Despite care, the balancing act has led from well-managed mainframe code into the current linker spaghetti situation.  Urbit's \lstinline[style=inlinecode]{++ford} build system elegantly solves for the linking problem by promoting structural sharing of objects (nouns) in memory and by utilizing a referentially transparent build cache across desks.  This balances efficiency in code compilation and building with the reliability of solid-state computing.
 
-\bibliographystyle{plainnat}
-\bibliography{linking}
+\printbibliography
 \end{document}
