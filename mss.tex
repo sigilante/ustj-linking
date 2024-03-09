@@ -23,7 +23,7 @@
 %  Arrange subsequent pages:
 \fancyhf{}
 \fancyhead[LE]{{\urbitfont Urbit Systems Technical Journal}}
-\fancyhead[RO]{A Solution to Static vs. Dynamic Linking}
+\fancyhead[RO]{Static vs. Dynamic Linking}
 \fancyfoot[LE,RO]{\thepage}
 
 %%MANUSCRIPT
@@ -37,6 +37,7 @@
 \thispagestyle{firststyle}
 
 \begin{abstract}
+\noindent
 Computing systems that utilize library code must either link to a self-provided version (static linking) or a system-supplied version (dynamic linking).  This can lead to memory duplication or dependency hell.  The Urbit \lstinline[style=inlinecode]{++ford} build system elegantly solves for the linking problem by promoting structural sharing of objects (nouns) in memory and by utilizing a referentially transparent build cache.
 \end{abstract}
 
@@ -66,7 +67,7 @@ These are extremely complicated and incredibly wasteful \emph{(of memory)} ways 
 \end{quote}
 
 \noindent
-\citeauthor{Locklin2022}'s picturesque exposition highlights the “dependency hell” or “DLL hell” that mires modern software development.  (Cf. \citet{Grimes2003}.)  From Urbit's perspective as a solid-state computer, another problem with dynamic linking is that it is not deterministic.  Dynamic linking was something of a pact with the devil, permitting efficient memory usage at the price of legibility.
+\citeauthor{Locklin2022}'s picturesque exposition highlights the “dependency hell” or “DLL hell” that mires modern software development (cf. \citet{Grimes2003}).  From Urbit's perspective as a solid-state computer, another problem with dynamic linking is that it is not deterministic.  Dynamic linking was something of a pact with the devil, permitting efficient memory usage at the price of legibility.
 
 Programmers have to balance flexibility, portability, and dependency management when deciding how to link a program.
 
@@ -83,17 +84,22 @@ Ford compiles a Hoon source file into a data structure called a “vase”, a pa
 
 For example, the (trivial) Hoon source file with text \lstinline[style=inlinecode]{'3'} compiles to the vase \lstinline[style=inlinecode]{[[%atom %ud ~] 3]}.  \lstinline[style=inlinecode]{3} is the value.  Its type is an atom (number), tagged as an unsigned decimal (\lstinline[style=inlinecode]{%ud}) for printing.
 
-As another example, the Hoon source file with text \lstinline[style=inlinecode]{'[3 0x4]'} compiles to \lstinline[style=inlinecode]{[[%cell [%atom %ud ~] [%atom %ux ~]] [3 0x4]]}.  It's a vase of a \lstinline[style=inlinecode]{%cell} (pair) of unsigned decimal number (\lstinline[style=inlinecode]{%ud}) and unsigned hexadecimal number (\lstinline[style=inlinecode]{%ux}).  If \lstinline[style=inlinecode]{/foo/hoon} is \lstinline[style=inlinecode]{'3'}, \lstinline[style=inlinecode]{/bar/hoon} is \lstinline[style=inlinecode]{'0x4'}, then importing both of those files changes the build subject to (a vase of) \lstinline[style=inlinecode]{[foo=3 bar=0x4 <stdlib>]}.
+As another example, the Hoon source file with text \lstinline[style=inlinecode]{'[3 0x4]'} compiles to
+\begin{lstlisting}[style=listingblock]
+[[%cell [%atom %ud ~] [%atom %ux ~]] [3 0x4]]
+\end{lstlisting}
+\noindent
+This is a vase of a \lstinline[style=inlinecode]{%cell} (pair) of unsigned decimal number (\lstinline[style=inlinecode]{%ud}) and unsigned hexadecimal number (\lstinline[style=inlinecode]{%ux}).  If \lstinline[style=inlinecode]{/foo/hoon} is \lstinline[style=inlinecode]{'3'}, \lstinline[style=inlinecode]{/bar/hoon} is \lstinline[style=inlinecode]{'0x4'}, then importing both of those files changes the build subject to (a vase of) \lstinline[style=inlinecode]{[foo=3 bar=0x4 <stdlib>]}.
 
 This is a form of static linking.  The linking is performed at build time, not at runtime, and the resulting program contains its imports.  “Relocation pointers” in C correspond to adjusting tree slots in Hoon, which the Hoon compiler does for the developer.  Because Urbit uses static linking, it long had the same problem static linking has always had:  memory duplication.  If two different apps imported the same library, that library would be built twice and two copies of it would exist in memory.
 
-In Urbit, everything is a “noun” (a binary tree with arbitrarily-sized integers at leaves).  If you “copy” a noun \lstinline[style=inlinecode]{foo}, like \lstinline[style=inlinecode]{[foo foo]}, the runtime just copies a pointer to it.  They are immutable, so everything shares structure.  Nouns are “persistent” data structures, like Clojure's collections.  If one copies a library, the copy is merely a pointer to the library—the library is a \emph{noun}.  If an imported library can be looked up from a build cache, the builder can copy it into a new app's build subject without duplicating it in memory.  
+In Urbit, everything is a “noun” (a binary tree with arbi\-trarily-sized integers at leaves).  If you “copy” a noun \lstinline[style=inlinecode]{foo}, like \lstinline[style=inlinecode]{[foo foo]}, the runtime just copies a pointer to it.  They are immutable, so everything shares structure.  Nouns are “persistent” data structures, like Clojure's collections.  If one copies a library, the copy is merely a pointer to the library—the library is a \emph{noun}.  If an imported library can be looked up from a build cache, the builder can copy it into a new app's build subject without duplicating it in memory.  
 
-But how does one know whether the cached library is valid?  To achieve global (cross-application) deduplication, one needs a referentially transparent build cache, i.e. a build factored as a full description of an input to the build system.  Since the build system is deterministic, if one sees the same input, one knows that i will produce the same output.
+But how does one know whether the cached library is valid?  To achieve global (cross-application) deduplication, one needs a referentially transparent build cache, i.e. a build factored as a full description of an input to the build system.  Since the build system is deterministic, if one sees the same input, one knows that it will produce the same output.
 
 With one referentially transparent cache for all builds in the whole system, no invalidation is necessary.  Cache eviction can take place efficiently due to reference counting, since which revisions of which apps refer to which builds is known.
 
-As of \#5745 \citep{Monk2022}, Urbit supplies such a referentially transparent build cache.  What this means in practice is that Urbit can have the memory deduplication benefits of dynamic linking while still using static linking.  Since every filesystem snapshot lives at a unique, immutable, authenticated path within Urbit's scry namespace, reproducible builds are possible on every node, a crucial feature for software supply chain security and reliable app distribution.
+As of \citetpr{Monk2022}, Urbit supplies such a referentially transparent build cache.  What this means in practice is that Urbit can have the memory deduplication benefits of dynamic linking while still using static linking.  Since every filesystem snapshot lives at a unique, immutable, authenticated path within Urbit's scry namespace, reproducible builds are possible on every node, a crucial feature for software supply chain security and reliable app distribution.
 
 \section{The Modern \lstinline[style=inlinecode]{++ford} Build Cache}
 
@@ -126,7 +132,9 @@ In each case, the new build is added to either cache if it was not already prese
 
 \section{Conclusion}
 
-Developers have long sought to balance the flexibility and portability of static linking with the better system demands of dynamic linking.  Despite care, the balancing act has led from well-managed mainframe code into the current linker spaghetti situation.  Urbit's \lstinline[style=inlinecode]{++ford} build system elegantly solves for the linking problem by promoting structural sharing of objects (nouns) in memory and by utilizing a referentially transparent build cache across desks.  This balances efficiency in code compilation and building with the reliability of solid-state computing.
+\sloppy
+Developers have long sought to balance the flexibility and portability of static linking with the better system demands of dynamic linking.  Despite care, the balancing act has led from well-managed mainframe code into the current linker spaghetti situation.  Urbit's \lstinline[style=inlinecode]{++ford} build system elegantly solves for the linking problem by promoting structural sharing of objects (nouns) in memory and by utilizing a referentially transparent build cache across desks.  This balances efficiency in code compilation and building with the reliability of solid-state computing.  \tombstone{}
 
+\selectlanguage{USenglish}
 \printbibliography
 \end{document}
