@@ -4,9 +4,9 @@
 
 \addbibresource{mss.bib}
 
-\newcommand{\authorname}{Ted Blackman \patp{rovnys-ricfer} \\ Philip C. Monk \patp{wicdev-wisryt}}
+\newcommand{\authorname}{Ted Blackman \patp{rovnys-ricfer} \\ Urbit Foundation}
 \newcommand{\authorpatp}{}
-\newcommand{\affiliation}{Urbit Foundation \\ Tlon Corporation}
+\newcommand{\affiliation}{Philip C. Monk \patp{wicdev-wisryt} \\ Tlon Corporation}
 
 %  Make first page footer:
 \fancypagestyle{firststyle}{%
@@ -14,8 +14,8 @@
 \fancyhead{}
 \fancyfoot[L]{{\footnotesize
               %% We toggle between these:
-              Manuscript submitted for review.\\
-              % {\it Urbit Systems Technical Journal} I:1 (2024):  1–3. \\
+              % Manuscript submitted for review.\\
+              {\it Urbit Systems Technical Journal} I:1 (2024):  75–82. \\
               ~ \\
               Address author correspondence to \patp{rovnys-ricfer}.
               }}
@@ -43,7 +43,7 @@ Computing systems that utilize library code must either link to a self-provided 
 
 % We will adjust page numbering in final editing.
 \pagenumbering{arabic}
-\setcounter{page}{1}
+\setcounter{page}{75}
 
 \tableofcontents
 
@@ -62,18 +62,22 @@ Dynamic linking was invented to address this problem.  Instead of linking a libr
 \begin{quote}
 The shared object concept itself is a towering failure. This is little appreciated but undeniably true. The idea of the shared object is simple enough: if you have a computer running lots of code, some of the code used will be the same. Why not just load it to memory once and share that memory at runtime? … When people invented shared objects back in the 1960s, the computer was a giant, rare thing ministered to by a priesthood: there was no such thing as multiple versions of a shared object. You used what the mainframe vendor sold you.
 
-It’s now such an enormous problem there are multiple billion-dollar startups for technologies for dealing with this complexity by adding further complexity. Docker, Kubernetes, various Amazon atrocities for dealing with Docker and Kubernetes and their competitors, Flatpak, Conda, AppImages, MacPorts, \texttt{brew}, RPM, NixOS, \texttt{dpkg}/\texttt{apt}, VirtualBox, \texttt{pacman}, Yum, SnapCraft…. As the number of packages grows, this breaks down, and even the OS maintainers are giving up and turning to flatpak, AppImages and Snap files. 
+\sloppy
+It's now such an enormous problem there are multiple billion-dollar startups for technologies for dealing with this complexity by adding further complexity. Docker, Kubernetes, various Amazon atrocities for dealing with Docker and Kubernetes and their competitors, Flatpak, Conda, AppImages, MacPorts, \texttt{brew}, {\sc rpm}, NixOS, \texttt{dpkg}/\texttt{apt}, VirtualBox, \texttt{pacman}, Yum, SnapCraft…. As the number of packages grows, this breaks down, and even the OS maintainers are giving up and turning to flatpak, AppImages and Snap files.
+
+\sloppy
 These are extremely complicated and incredibly wasteful \emph{(of memory)} ways of literally packaging up a bunch of needed shared libraries with your application and presenting it to you as a crappy simulacrum of a statically compiled binary.  \citep{Locklin2022}
 \end{quote}
 
 \noindent
-\citeauthor{Locklin2022}'s picturesque exposition highlights the “dependency hell” or “DLL hell” that mires modern software development (cf. \citet{Grimes2003}).  From Urbit's perspective as a solid-state computer, another problem with dynamic linking is that it is not deterministic.  Dynamic linking was something of a pact with the devil, permitting efficient memory usage at the price of legibility.
+\citeauthor{Locklin2022}'s picturesque exposition highlights the “dependency hell” or “{\sc dll} hell” that mires modern software development (cf. \citet{Grimes2003}).  From Urbit's perspective as a solid-state computer, another problem with dynamic linking is that it is not deterministic.  Dynamic linking was something of a pact with the devil, permitting efficient memory usage at the price of legibility.
 
 Programmers have to balance flexibility, portability, and dependency management when deciding how to link a program.
 
 
 \section{Building Code Deterministically}
 
+\sloppy
 Determinism has long been a desired characteristic of any given build system.  The source code should be a function of build environment and build instructions in a straightforward way.  Even accessing the linked libraries in a different order can alter the resulting binary, however, meaning that true reproducibility is elusive.  Declarative package managers like Nix \citep{Nix}~and Guix \citep{Guix}~use a functional package management approach to achieve reproducibility, marking packages using cryptographic hashes to track dependencies uniquely and repeatably.
 
 In Urbit, compilation means converting Hoon source code (as text) into Nock code (as a binary tree).  This process is handled by \lstinline[style=inlinecode]{++rash}, \lstinline[style=inlinecode]{++mint:ut}, and other components of the Urbit build system.
@@ -89,7 +93,7 @@ As another example, the Hoon source file with text \lstinline[style=inlinecode]{
 [[%cell [%atom %ud ~] [%atom %ux ~]] [3 0x4]]
 \end{lstlisting}
 \noindent
-This is a vase of a \lstinline[style=inlinecode]{%cell} (pair) of unsigned decimal number (\lstinline[style=inlinecode]{%ud}) and unsigned hexadecimal number (\lstinline[style=inlinecode]{%ux}).  If \lstinline[style=inlinecode]{/foo/hoon} is \lstinline[style=inlinecode]{'3'}, \lstinline[style=inlinecode]{/bar/hoon} is \lstinline[style=inlinecode]{'0x4'}, then importing both of those files changes the build subject to (a vase of) \lstinline[style=inlinecode]{[foo=3 bar=0x4 <stdlib>]}.
+This is a vase of a \lstinline[style=inlinecode]{%cell} (pair) of unsigned decimal number (\lstinline[style=inlinecode]{%ud}) and unsigned hexadecimal number (\lstinline[style=inlinecode]{%ux}).  If \lstinline[style=inlinecode]{/foo/hoon} is \lstinline[style=inlinecode]{'3'}, \lstinline[style=inlinecode]{/bar/hoon} is \lstinline[style=inlinecode]{'0x4'}, then importing both of those files changes the build subject to \lstinline[style=inlinecode]{[foo=3 bar=0x4 <stdlib>]} (or really, a vase of that value).
 
 This is a form of static linking.  The linking is performed at build time, not at runtime, and the resulting program contains its imports.  “Relocation pointers” in C correspond to adjusting tree slots in Hoon, which the Hoon compiler does for the developer.  Because Urbit uses static linking, it long had the same problem static linking has always had:  memory duplication.  If two different apps imported the same library, that library would be built twice and two copies of it would exist in memory.
 
@@ -103,13 +107,14 @@ As of \citetpr{Monk2022}, Urbit supplies such a referentially transparent build 
 
 \section{The Modern \lstinline[style=inlinecode]{++ford} Build Cache}
 
+\sloppy
 The former Ford cache was per-desk,\footnote{Clay desks in Urbit are like Git branches, describing particular filesystem continuities.} keyed on the name of the build (e.g. a file at a certain path).  It was impossible to share such a cache between desks because the name may refer to different things on different desks or at different revisions.
 
 Since the caches weren't shared, they commonly held exactly the same data but generated independently.  For instance, the same library used on different desks would be built repeatedly and the memory was not shared unless the user manually ran the \lstinline[style=inlinecode]{|meld} command to manually deduplicate nouns.  For users with many apps installed, this added significant memory pressure.
 
 A new cache was designed which is keyed on the name of the build plus its dependencies. This is all the input to a build except the standard library.  Thus when one matches a key it does not matter which desk the value was on; the cache can be shared across all desks.  When the standard library changes, all caches are cleared automatically.
 
-Reclaiming space from this cache becomes important.  Since this is a “true” cache, it's never incorrect to keep data in it.  One could adopt a heuristic such as to clear hourly or so you could use a heuristic such as "clear the whole thing every hour" or a least-recently-used (LRU) policy.  However, \lstinline[style=inlinecode]{++ford} has a long history of trying to use such heuristics and still using exorbitant amounts of memory.  The primary innovation of the former \lstinline[style=inlinecode]{++ford} cache was that its size is deterministic, and it stored no builds unless they could be generated from the head of its desk (\lstinline[style=inlinecode]{%home} then \lstinline[style=inlinecode]{%base}).
+Reclaiming space from this cache becomes important.  Since this is a “true” cache, it's never incorrect to keep data in it.  One could adopt a heuristic such as to clear hourly or so you could use a heuristic such as "clear the whole thing every hour" or a least-recently-used ({\sc lru}) policy.  However, \lstinline[style=inlinecode]{++ford} has a long history of trying to use such heuristics and still using exorbitant amounts of memory.  The primary innovation of the former \lstinline[style=inlinecode]{++ford} cache was that its size is deterministic, and it stored no builds unless they could be generated from the head of its desk (\lstinline[style=inlinecode]{%home} then \lstinline[style=inlinecode]{%base}).
 
 These properties are extended to the global cache by counting references and maintaining a per-desk set of references to builds which are still relevant to the head of that desk.  On every commit, the per-desk set of references is inspected to determine which have been invalidated.  Invalidated references are freed in the usual manner—their refcount is decremented, and if it's now zero, then it is deleted from the cache and all of its immediate dependencies are freed.
 

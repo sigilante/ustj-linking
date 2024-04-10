@@ -9,13 +9,19 @@
 \usepackage{calc} % for \heightof in \tombstone
 
 \usepackage{mathspec}
-\setmainfont{Linux Libertine O}
+\setmathtt[Scale=MatchLowercase]{Urbit Sans Mono TT SemiBold}
+\usepackage[osf]{libertineRoman}
 \newfontfamily\monofont{Urbit Sans Mono TT SemiBold}[Scale=MatchLowercase]
 \renewcommand{\setmonofont}{\monofont}
 \renewcommand{\texttt}[1]{{\monofont #1}}
-% Set the monospace font for math mode
-%\usepackage{mathspec}
-\setmathtt[Scale=MatchLowercase]{Urbit Sans Mono TT SemiBold}
+% Define a new font family for small caps with FakeSlant
+\newfontfamily\slantedsmallcapsfont{Linux Libertine O}[
+    FakeSlant = 0.1 % Adjust the slant amount as needed
+]
+% Redefine \textsc to make small caps 25% larger
+% \let\oldtextsc\textsc
+% \renewcommand{\textsc}[1]{\scalebox{1.25}{\oldtextsc{#1}}}
+\newcommand{\ssc}[1]{{\slantedsmallcapsfont\textsc{#1}}}
 
 \usepackage{listings}
 \usepackage[dvipsnames]{xcolor}
@@ -128,13 +134,16 @@
 \usepackage{titlesec}
 \newfontfamily\urbitfont{Urbit Sans TT SemiBold}
 \titleformat{\section}{\urbitfont\Large\bfseries}{\thesection}{1em}{}
-\titleformat{\subsection}{\urbitfont\Large\bfseries}{\thesubsection}{1em}{}
+\titleformat{\subsection}{\urbitfont\large\bfseries}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\urbitfont\normalsize\bfseries}{\thesubsubsection}{1em}{}
+\titleformat{\paragraph}[runin]{\urbitfont\normalsize\bfseries}{\theparagraph}{1em}{}
 \usepackage{titling}
 \renewcommand{\maketitlehooka}{\urbitfont\bfseries}
 % Redefine the format of the abstract heading to make it invisible
 \AtBeginDocument{\renewcommand{\abstractname}{}}
 
 %% Page size
+% \usepackage[paperheight=8.5in,paperwidth=5.5in,margin=1in,heightrounded,showframe]{geometry}
 \usepackage[paperheight=8.5in,paperwidth=5.5in,margin=1in,heightrounded]{geometry}
 
 %% Configure first-page footer and later-page header.
@@ -147,7 +156,7 @@
 \newcommand{\github}[1]{\texttt{@#1}}
 
 % Turn off when producing release version.
-% \usepackage{lineno}
+\usepackage{lineno}
 % \linenumbers
 
 % Bibliography management
@@ -156,10 +165,11 @@
     style=authoryear-icomp,
     sortlocale=en_US,
     natbib=true,
-    url=false,
+    url=true,
     eprint=false
 ]{biblatex}
 \usepackage[hidelinks,breaklinks=true]{hyperref}
+\renewcommand{\UrlBreaks}{\do\/\do-}
 
 % Patch the \bibsetup command to set the bibliography to be ragged-right
 \usepackage{etoolbox}
@@ -198,6 +208,17 @@
     \iffieldundef{#3}{}{\stripzeros{\thefield{#3}}}%
   }%
 }
+
+% Define a command to enclose the title in quotation marks
+\newcommand{\quotetitle}[1]{``#1''}
+
+% Use the command to enclose the title for @online and @software entries
+\DeclareFieldFormat[online]{title}{\quotetitle{#1}}
+\DeclareFieldFormat[software]{title}{\quotetitle{#1}}
+\DeclareFieldFormat[techreport]{techreport}{\quotetitle{#1}}
+\DeclareFieldFormat[online]{titleaddon}{#1} % Adjust the formatting of titleaddon
+
+\newcommand{\tombstone}{\resizebox{!}{\heightof{T}}{\includegraphics{ustj-logo}}}
 
 % Define a custom citation command for GitHub PRs
 \DeclareCiteCommand{\citetpr}
@@ -267,14 +288,18 @@
     {}%
   \usebibmacro{finentry}}
 
-% Define a command to enclose the title in quotation marks
-\newcommand{\quotetitle}[1]{``#1''}
-
-% Use the command to enclose the title for @online and @software entries
-\DeclareFieldFormat[online]{title}{\quotetitle{#1}}
-\DeclareFieldFormat[software]{title}{\quotetitle{#1}}
-
-\newcommand{\tombstone}{\resizebox{!}{\heightof{T}}{\includegraphics{ustj-logo}}}
+% Redefine the bibliography driver for @techreport entries
+\DeclareBibliographyDriver{techreport}{%
+    \usebibmacro{bibindex}%
+    \usebibmacro{begentry}%
+    \usebibmacro{author/editor}%
+    \setunit{\addspace}%
+    \printfield{title}%
+    \newunit\newblock
+    \usebibmacro{url}%
+    \newunit\newblock
+    \usebibmacro{finentry}%
+}
 
 \hfuzz=0.1pt % Adjust the value as needed
 \hbadness=10000 % This value disables any reporting of overfull boxes
