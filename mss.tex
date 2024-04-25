@@ -38,7 +38,7 @@
 
 \begin{abstract}
 \noindent
-Computing systems that utilize library code must either link to a self-provided version (static linking) or a system-supplied version (dynamic linking).  This can lead to memory duplication or dependency hell.  The Urbit \lstinline[style=inlinecode]{++ford} build system elegantly solves for the linking problem by promoting structural sharing of objects (nouns) in memory and by utilizing a referentially transparent build cache.
+Computing systems that utilize library code must either link to a self-provided version (static linking) or a system-supplied version (dynamic linking).  This can lead to memory duplication or dependency hell.  Urbit's \lstinline[style=inlinecode]{++ford} build system elegantly solves the linking problem by promoting structural sharing of objects (nouns) in memory and by utilizing a referentially transparent build cache.
 \end{abstract}
 
 % We will adjust page numbering in final editing.
@@ -55,9 +55,9 @@ A compiled computer program is conventionally built by parsing and compiling the
 
 “Static linking” includes all library code in the program executable file.  Static linking is the naïve way to combine source files into a program:  compound the files together into one object and then compile that into a program.  The semantics tend to be clean and simple, and many programs are linked this way.  Statically-linked programs can also run faster since they do not need to resolve library references during execution.
 
-The problem with static linking is that if the same library is used by more than one application, there is more than one copy of it in memory as a result.  This memory duplication can be demanding on RAM utilization and reduce cache locality, degrading overall system performance.
+The problem with static linking is that if the same library is used by more than one application, there is more than one copy of it in memory as a result.  This memory duplication can be demanding on {\sc ram} utilization and reduce cache locality, degrading overall system performance.
 
-Dynamic linking was invented to address this problem.  Instead of linking a library into a program at build time, one links it at runtime.  The OS keeps a single copy of the shared library in RAM that multiple programs can use.  This reduces memory usage and improves performance, but can lead to version mismatches and dependency issues.  \citeauthor{Locklin2022}~explains,
+Dynamic linking was invented to address this problem.  Instead of linking a library into a program at build time, one links it at runtime.  The OS keeps a single copy of the shared library in {\sc ram} that multiple programs can use.  This reduces memory usage and improves performance, but can lead to version mismatches and dependency issues.  \citeauthor{Locklin2022}~explains,
 
 \begin{quote}
 The shared object concept itself is a towering failure. This is little appreciated but undeniably true. The idea of the shared object is simple enough: if you have a computer running lots of code, some of the code used will be the same. Why not just load it to memory once and share that memory at runtime? … When people invented shared objects back in the 1960s, the computer was a giant, rare thing ministered to by a priesthood: there was no such thing as multiple versions of a shared object. You used what the mainframe vendor sold you.
@@ -82,7 +82,7 @@ Determinism has long been a desired characteristic of any given build system.  T
 
 In Urbit, compilation means converting Hoon source code (as text) into Nock code (as a binary tree).  This process is handled by \lstinline[style=inlinecode]{++rash}, \lstinline[style=inlinecode]{++mint:ut}, and other components of the Urbit build system.
 
-Linking, in the Urbit sense, derives from supplying nouns to nouns at compile time.\footnote{This is perhaps the biggest distinction from the conventional scenario for linking, which refers to RAM words.  \emph{Ceteris paribus}, this article's discussion can inform the traditional dialogue.}  In the Urbit build arm \lstinline[style=inlinecode]{++ford}, a pair of builds becomes the build of a pair.  The subject (environment) used to build a file is the tuple \lstinline[style=inlinecode]{[import_n … import_2 import_1 stdlib]}.  Since Hoon symbol lookup is left-to-right, this nests scopes seamlessly and predictably.  The linking technique is essentially trivial.
+Linking, in the Urbit sense, derives from supplying nouns to nouns at compile time.\footnote{This is perhaps the biggest distinction from the conventional scenario for linking, which refers to {\sc ram} words.  \emph{Ceteris paribus}, this article's discussion can inform the traditional dialogue.}  In the Urbit build arm \lstinline[style=inlinecode]{++ford}, a pair of builds becomes the build of a pair.  The subject (environment) used to build a file is the tuple \lstinline[style=inlinecode]{[import_n … import_2 import_1 stdlib]}.  Since Hoon symbol lookup is left-to-right, this nests scopes seamlessly and predictably.  The linking technique is essentially trivial.
 
 Ford compiles a Hoon source file into a data structure called a “vase”, a pair \lstinline[style=inlinecode]{[type noun]} where \lstinline[style=inlinecode]{noun} is a member of the set of nouns described by \lstinline[style=inlinecode]{type}.  Linking is thence just calling the \lstinline[style=inlinecode]{++slop} funciton, a one-liner from a pair of vases to a vase of the pair.
 
@@ -99,16 +99,16 @@ This is a form of static linking.  The linking is performed at build time, not a
 
 In Urbit, everything is a “noun” (a binary tree with arbi\-trarily-sized integers at leaves).  If you “copy” a noun \lstinline[style=inlinecode]{foo}, like \lstinline[style=inlinecode]{[foo foo]}, the runtime just copies a pointer to it.  They are immutable, so everything shares structure.  Nouns are “persistent” data structures, like Clojure's collections.  If one copies a library, the copy is merely a pointer to the library—the library is a \emph{noun}.  If an imported library can be looked up from a build cache, the builder can copy it into a new app's build subject without duplicating it in memory.  
 
-But how does one know whether the cached library is valid?  To achieve global (cross-application) deduplication, one needs a referentially transparent build cache, i.e. a build factored as a full description of an input to the build system.  Since the build system is deterministic, if one sees the same input, one knows that it will produce the same output.
+But how does one know whether the cached library is valid?  To achieve global (cross-application) deduplication, one needs a referentially transparent build cache, i.\,e.\ a build factored as a full description of an input to the build system.  Since the build system is deterministic, if one sees the same input, one knows that it will produce the same output.
 
 With one referentially transparent cache for all builds in the whole system, no invalidation is necessary.  Cache eviction can take place efficiently due to reference counting, since which revisions of which apps refer to which builds is known.
 
 As of \citetpr{Monk2022}, Urbit supplies such a referentially transparent build cache.  What this means in practice is that Urbit can have the memory deduplication benefits of dynamic linking while still using static linking.  Since every filesystem snapshot lives at a unique, immutable, authenticated path within Urbit's scry namespace, reproducible builds are possible on every node, a crucial feature for software supply chain security and reliable app distribution.
 
-\section{The Modern \lstinline[style=inlinecode]{++ford} Build Cache}
+\section[The Modern \texttt{++ford} Build Cache]{The Modern \texttt{++ford} Build Cache}
 
 \sloppy
-The former Ford cache was per-desk,\footnote{Clay desks in Urbit are like Git branches, describing particular filesystem continuities.} keyed on the name of the build (e.g. a file at a certain path).  It was impossible to share such a cache between desks because the name may refer to different things on different desks or at different revisions.
+The former Ford cache was per-desk,\footnote{Clay desks in Urbit are like Git repositories, describing particular filesystem continuities.} keyed on the name of the build (e.\,g.\ a file at a certain path).  It was impossible to share such a cache between desks because the name may refer to different things on different desks or at different revisions.
 
 Since the caches weren't shared, they commonly held exactly the same data but generated independently.  For instance, the same library used on different desks would be built repeatedly and the memory was not shared unless the user manually ran the \lstinline[style=inlinecode]{|meld} command to manually deduplicate nouns.  For users with many apps installed, this added significant memory pressure.
 

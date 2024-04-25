@@ -68,7 +68,7 @@
     breaklines=true,
     breakatwhitespace=true,
     commentstyle=\color{Gray}\emph,
-    keywordstyle=\color{darkgray}\bfseries
+    keywordstyle=\bfseries
 }
 \lstdefinestyle{listingcode}{
     language=Hoon,
@@ -169,6 +169,7 @@
     eprint=false
 ]{biblatex}
 \usepackage[hidelinks,breaklinks=true]{hyperref}
+\renewcommand\UrlFont{\monofont}
 \renewcommand{\UrlBreaks}{\do\/\do-}
 
 % Patch the \bibsetup command to set the bibliography to be ragged-right
